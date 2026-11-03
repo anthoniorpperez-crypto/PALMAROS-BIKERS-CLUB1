@@ -1,0 +1,321 @@
+```html
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Club Biker México - Rutas y Garaje</title>
+    <!-- Tailwind CSS CDN (Gratis) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            amber: '#f59e0b',
+                            dark: '#0f172a',
+                            card: '#1e293b',
+                            accent: '#d97706'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js para Gráficos e Indicadores -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Teko:wght@500;700&family=Inter:wght@300;400;600;700&display=swap');
+        
+        .font-biker {
+            font-family: 'Teko', sans-serif;
+            letter-spacing: 1px;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #f59e0b;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: #1e293b;
+            color: #fff;
+            border-radius: 12px;
+            border: 1px solid #334155;
+        }
+        .leaflet-popup-tip {
+            background: #1e293b;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 shadow-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('mapa')">
+                    <div class="p-2.5 bg-amber-500 rounded-xl text-slate-950 font-bold shadow-lg shadow-amber-500/20">
+                        <i data-lucide="bike" class="w-8 h-8"></i>
+                    </div>
+                    <div>
+                        <span class="font-biker text-3xl font-bold uppercase tracking-wider text-amber-500 block leading-none">RUTAS Y ASFALTO</span>
+                        <span class="text-xs text-slate-400 font-semibold tracking-widest uppercase">Club Biker México</span>
+                    </div>
+                </div>
+
+                <!-- Desktop Nav Navigation -->
+                <nav class="hidden md:flex space-x-1 lg:space-x-2">
+                    <button onclick="switchTab('mapa')" id="nav-mapa" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition bg-amber-500 text-slate-950">
+                        <i data-lucide="map" class="w-4 h-4"></i>
+                        <span>Mapa & Rutas</span>
+                    </button>
+                    <button onclick="switchTab('logros')" id="nav-logros" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 text-slate-300 hover:text-white hover:bg-slate-800 transition">
+                        <i data-lucide="award" class="w-4 h-4"></i>
+                        <span>Insignias</span>
+                    </button>
+                    <button onclick="switchTab('garage')" id="nav-garage" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 text-slate-300 hover:text-white hover:bg-slate-800 transition">
+                        <i data-lucide="wrench" class="w-4 h-4"></i>
+                        <span>Mi Garage</span>
+                    </button>
+                    <button onclick="switchTab('tienda')" id="nav-tienda" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 text-slate-300 hover:text-white hover:bg-slate-800 transition">
+                        <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+                        <span>Biker Shop</span>
+                    </button>
+                </nav>
+
+                <!-- Status Summary -->
+                <div class="hidden lg:flex items-center space-x-4 border-l border-slate-800 pl-6">
+                    <div class="text-right">
+                        <div class="text-xs text-slate-400">Total Rodado</div>
+                        <div class="text-amber-500 font-bold font-biker text-xl leading-none">12,450 KM</div>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-slate-800 border border-amber-500/40 flex items-center justify-center text-amber-500">
+                        <i data-lucide="shield-check" class="w-5 h-5"></i>
+                    </div>
+                </div>
+
+                <!-- Mobile menu button -->
+                <button onclick="toggleMobileMenu()" class="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 focus:outline-none">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Nav Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-slate-900 border-b border-slate-800 px-4 pt-2 pb-4 space-y-2">
+            <button onclick="switchTab('mapa')" class="w-full text-left px-3 py-2 rounded-lg text-slate-200 hover:bg-slate-800 flex items-center space-x-2">
+                <i data-lucide="map" class="w-5 h-5 text-amber-500"></i>
+                <span>Mapa & Rutas</span>
+            </button>
+            <button onclick="switchTab('logros')" class="w-full text-left px-3 py-2 rounded-lg text-slate-200 hover:bg-slate-800 flex items-center space-x-2">
+                <i data-lucide="award" class="w-5 h-5 text-amber-500"></i>
+                <span>Insignias y Logros</span>
+            </button>
+            <button onclick="switchTab('garage')" class="w-full text-left px-3 py-2 rounded-lg text-slate-200 hover:bg-slate-800 flex items-center space-x-2">
+                <i data-lucide="wrench" class="w-5 h-5 text-amber-500"></i>
+                <span>Mi Garage</span>
+            </button>
+            <button onclick="switchTab('tienda')" class="w-full text-left px-3 py-2 rounded-lg text-slate-200 hover:bg-slate-800 flex items-center space-x-2">
+                <i data-lucide="shopping-bag" class="w-5 h-5 text-amber-500"></i>
+                <span>Tienda Oficial</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINERS -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- TAB 1: MAPA Y RUTAS -->
+        <section id="tab-mapa" class="tab-content space-y-6">
+            <!-- Gráficos de Estadísticas Rápidas -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center justify-between shadow-lg">
+                    <div>
+                        <span class="text-xs text-slate-400 block font-semibold">Distancia Anual</span>
+                        <span class="text-2xl font-bold font-biker text-amber-500">12,450 KM</span>
+                        <span class="text-[10px] text-emerald-400 block">▲ +15% vs año anterior</span>
+                    </div>
+                    <div class="p-3 bg-amber-500/10 text-amber-500 rounded-xl border border-amber-500/20">
+                        <i data-lucide="trending-up" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center justify-between shadow-lg">
+                    <div>
+                        <span class="text-xs text-slate-400 block font-semibold">Pueblos Mágicos</span>
+                        <span class="text-2xl font-bold font-biker text-emerald-400">14 / 132</span>
+                        <span class="text-[10px] text-slate-400 block">Objetivo: 25 este año</span>
+                    </div>
+                    <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                        <i data-lucide="map-pin" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center justify-between shadow-lg">
+                    <div>
+                        <span class="text-xs text-slate-400 block font-semibold">Gasolineras Visitadas</span>
+                        <span class="text-2xl font-bold font-biker text-blue-400">48 Paradas</span>
+                        <span class="text-[10px] text-slate-400 block">Autonomía promedio: 380 km</span>
+                    </div>
+                    <div class="p-3 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
+                        <i data-lucide="fuel" class="w-6 h-6"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Interactive Map Wrapper -->
+                <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+                    <div class="p-4 bg-slate-900/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold font-biker text-white tracking-wide uppercase flex items-center gap-2">
+                                <i data-lucide="map-pin" class="text-amber-500 w-5 h-5"></i> Mapas de Pueblos Mágicos y Rutas
+                            </h2>
+                            <p class="text-xs text-slate-400">Haz clic en los puntos marcados para ver info y subir tu foto de logrado.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center text-xs bg-amber-500/10 text-amber-500 px-2.5 py-1 rounded-full border border-amber-500/20">
+                                <span class="w-2 h-2 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span> Pueblos Mágicos Visibles
+                            </span>
+                        </div>
+                    </div>
+                    <!-- Map Canvas -->
+                    <div id="map" class="w-full h-[450px] lg:h-[550px] bg-slate-950 z-10"></div>
+                </div>
+
+                <!-- Side Panel: Rutas Destacadas & Calculadora -->
+                <div class="space-y-6 flex flex-col">
+                    <!-- Dashboard Gráfico de Kilómetros por Mes -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                        <h3 class="text-lg font-bold font-biker uppercase text-amber-500 mb-3 flex items-center justify-between">
+                            <span><i data-lucide="bar-chart-3" class="inline w-4 h-4 mr-1"></i> Kilometraje Recorrido (2026)</span>
+                        </h3>
+                        <div class="h-44">
+                            <canvas id="kmChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Rutas Recomendadas -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                        <h3 class="text-lg font-bold font-biker uppercase text-amber-500 mb-3 flex items-center justify-between">
+                            <span><i data-lucide="navigation" class="inline w-4 h-4 mr-1"></i> Rutas Recomendadas</span>
+                            <span class="text-xs font-normal text-slate-400">México</span>
+                        </h3>
+                        <div class="space-y-3 max-h-[200px] overflow-y-auto pr-1">
+                            <!-- Ruta 1 -->
+                            <div onclick="focusRoute(21.1378, -99.6261)" class="p-3 bg-slate-800/60 hover:bg-slate-800 rounded-xl border border-slate-700/50 cursor-pointer transition flex justify-between items-center group">
+                                <div>
+                                    <div class="font-bold text-sm text-slate-200 group-hover:text-amber-400 transition">Sierra Gorda (Querétaro)</div>
+                                    <div class="text-xs text-slate-400 flex items-center gap-2 mt-1">
+                                        <span><i data-lucide="milestone" class="inline w-3 h-3"></i> 280 KM</span>
+                                        <span>•</span>
+                                        <span><i data-lucide="fuel" class="inline w-3 h-3 text-emerald-400"></i> 6 Gasolineras</span>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-bold px-2 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-md">Curvas</span>
+                            </div>
+
+                            <!-- Ruta 2 -->
+                            <div onclick="focusRoute(19.1925, -100.1312)" class="p-3 bg-slate-800/60 hover:bg-slate-800 rounded-xl border border-slate-700/50 cursor-pointer transition flex justify-between items-center group">
+                                <div>
+                                    <div class="font-bold text-sm text-slate-200 group-hover:text-amber-400 transition">Ruta del Sol (Valle de Bravo)</div>
+                                    <div class="text-xs text-slate-400 flex items-center gap-2 mt-1">
+                                        <span><i data-lucide="milestone" class="inline w-3 h-3"></i> 145 KM</span>
+                                        <span>•</span>
+                                        <span><i data-lucide="fuel" class="inline w-3 h-3 text-emerald-400"></i> 4 Gasolineras</span>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-bold px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-md">Tranquila</span>
+                            </div>
+
+                            <!-- Ruta 3 -->
+                            <div onclick="focusRoute(20.8864, -103.8368)" class="p-3 bg-slate-800/60 hover:bg-slate-800 rounded-xl border border-slate-700/50 cursor-pointer transition flex justify-between items-center group">
+                                <div>
+                                    <div class="font-bold text-sm text-slate-200 group-hover:text-amber-400 transition">Ruta Agave (Tequila, Jal)</div>
+                                    <div class="text-xs text-slate-400 flex items-center gap-2 mt-1">
+                                        <span><i data-lucide="milestone" class="inline w-3 h-3"></i> 65 KM</span>
+                                        <span>•</span>
+                                        <span><i data-lucide="fuel" class="inline w-3 h-3 text-emerald-400"></i> 3 Gasolineras</span>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-bold px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-md">Corta</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calculadora Rápidas de Viaje -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex-grow flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold font-biker uppercase text-amber-500 mb-3 flex items-center gap-2">
+                                <i data-lucide="calculator" class="w-5 h-5"></i> Calculador de Consumo y Gasolina
+                            </h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-xs text-slate-400 mb-1 block">Distancia estimada a rodar (KM)</label>
+                                    <input type="number" id="calc-km" value="320" oninput="calculateFuel()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-xs text-slate-400 mb-1 block">Rendimiento (KM/L)</label>
+                                        <input type="number" id="calc-kml" value="18" oninput="calculateFuel()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-slate-400 mb-1 block">Precio Gas ($/L)</label>
+                                        <input type="number" id="calc-price" value="24.50" oninput="calculateFuel()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Result Display -->
+                        <div class="mt-4 p-3 bg-slate-800/80 rounded-xl border border-slate-700 flex justify-between items-center">
+                            <div>
+                                <span class="text-xs text-slate-400 block">Litros Necesarios</span>
+                                <span id="res-liters" class="text-lg font-bold text-amber-500">17.8 L</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs text-slate-400 block">Costo Estimado</span>
+                                <span id="res-cost" class="text-lg font-bold text-emerald-400">$435.50 MXN</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Galería de Evidencias Logradas (Fotos) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-bold font-biker text-amber-500 uppercase flex items-center gap-2">
+                            <i data-lucide="camera" class="w-5 h-5"></i> Muestras y Fotografías de Rodadas Logradas
+                        </h3>
+                        <p class="text-xs text-slate-400">Evidencia fotográfica subida por la comunidad del club.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    <div class="group relative h-40 rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
+                        <img src="https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=500&q=80" alt="Sierra Gorda" class="w-full h-full object-cover group-hover:scale-110 trans
